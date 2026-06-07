@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: fueltrack
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-fueltrack}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: fueltrack
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -17,35 +17,26 @@ services:
       timeout: 5s
       retries: 5
 
-  server:
+  app:
     build:
       context: .
-      dockerfile: server/Dockerfile
-    container_name: fueltrack-api
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    container_name: fueltrack-app
     restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql://fueltrack:${DB_PASSWORD:-fueltrack}@postgres:5432/fueltrack?schema=public"
+      DATABASE_URL: "postgresql://fueltrack:${DB_PASSWORD}@postgres:5432/fueltrack?schema=public"
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CLIENT_URL: ${CLIENT_URL}
       PORT: 8081
-      CLIENT_URL: ${CLIENT_URL:-http://localhost:8080}
-      NODE_ENV: production
-    networks:
-      - fueltrack-net
-
-  client:
-    build:
-      context: .
-      dockerfile: client/Dockerfile
-    container_name: fueltrack-web
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    depends_on:
-      - server
     networks:
       - fueltrack-net
 
