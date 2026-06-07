@@ -1,10 +1,10 @@
-# FuelTrack ⛽
+# FuelTrack
 
-App web **mobile-first** para llevar el control de combustible, rutas (GPS en vivo) y mantenimiento de vehículos. Calcula rendimiento (km/L), costo por km, gasto mensual y cuándo toca tanquear.
+App web **mobile-first** para llevar el control de combustible, rutas (GPS en vivo con OpenStreetMap) y mantenimiento de vehículos. Calcula rendimiento (km/L), costo por km, gasto mensual y cuándo toca tanquear.
 
 ---
 
-## 🧪 Credenciales de prueba
+## Credenciales de prueba
 
 ```
 Email:    demo@fueltrack.app
@@ -24,7 +24,7 @@ El seed incluye:
 | Frontend | React 18 + Vite + TypeScript + Tailwind + shadcn/ui |
 | Estado/Datos | TanStack Query + Zustand |
 | Gráficos | Recharts |
-| Mapas | Google Maps JS API (`@react-google-maps/api`) |
+| Mapas | Leaflet + OpenStreetMap |
 | Backend | Node + Express + TypeScript |
 | ORM / DB | Prisma + PostgreSQL (Docker) |
 | Auth | JWT + bcrypt |
@@ -32,15 +32,13 @@ El seed incluye:
 
 ---
 
-## Requisitos previos
+## Desarrollo local
 
-- **Node.js 20+** y pnpm: `npm install -g pnpm`
-- **Docker Desktop** (para PostgreSQL local)
-- **Cuenta de Google Cloud** con facturación activada (para Maps, opcional)
+### Requisitos previos
+- Node.js 20+ y pnpm: `npm install -g pnpm`
+- Docker
 
----
-
-## Instalación rápida
+### Instalación
 
 ```bash
 # 1. Clonar e instalar dependencias
@@ -53,35 +51,56 @@ docker compose up -d
 cd server
 npx prisma migrate dev --name init
 pnpm seed
+cd ..
 
-# 4. Iniciar backend (http://localhost:4000)
-pnpm dev
-
-# 5. En otra terminal, iniciar frontend (http://localhost:5173)
-cd client
+# 4. Iniciar server + client en paralelo (http://localhost:8081 y http://localhost:8080)
 pnpm dev
 ```
 
----
+### Variables de entorno (desarrollo local)
 
-## Variables de entorno
-
-### `server/.env`
+#### `server/.env`
 ```
 DATABASE_URL="postgresql://fueltrack:fueltrack@localhost:5432/fueltrack?schema=public"
 JWT_ACCESS_SECRET="cambia-esto-por-un-secreto-largo-y-aleatorio"
 JWT_REFRESH_SECRET="cambia-esto-por-otro-secreto-largo-y-aleatorio"
-PORT=4000
-CLIENT_URL="http://localhost:5173"
+PORT=8081
+CLIENT_URL="http://localhost:8080"
 ```
 
-### `client/.env`
+#### `client/.env`
 ```
-VITE_API_URL="http://localhost:4000"
-VITE_GOOGLE_MAPS_API_KEY="tu-api-key-de-google-maps"
+VITE_API_URL="http://localhost:8081"
 ```
 
-> Google Maps es **opcional** para visualizar mapas. La app funciona sin la key (solo no mostrará mapas).
+---
+
+## Despliegue en VPS (producción)
+
+### Requisitos
+- Docker y Docker Compose
+
+### Pasos
+
+```bash
+# 1. Clonar
+git clone https://github.com/enmarcm/fueltrack.git
+cd fueltrack
+
+# 2. Configurar variables de entorno
+cp .env.production.example .env
+nano .env   # Editar DB_PASSWORD, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, CLIENT_URL
+
+# 3. Iniciar todos los servicios (PostgreSQL + API + Nginx)
+docker compose up -d
+
+# 4. Sembrar datos demo (solo la primera vez)
+docker compose exec server npx prisma db seed
+
+# 5. La app corre en http://tu-vps:8080
+```
+
+La API corre internamente en el puerto **8081** y Nginx sirve el frontend en el puerto **8080** con proxy inverso a la API.
 
 ---
 
@@ -120,45 +139,15 @@ VITE_GOOGLE_MAPS_API_KEY="tu-api-key-de-google-maps"
 - `DELETE /api/vehicles/:id/fuel/:entryId` — Eliminar
 
 ### Viajes
-- `GET /api/vehicles/:id/trips` — Listar viajes
+- `GET /api/trips` — Todos los viajes del usuario
+- `GET /api/vehicles/:id/trips` — Viajes de un vehículo
 - `POST /api/vehicles/:id/trips` — Registrar viaje
 - `PUT /api/vehicles/:id/trips/:tripId` — Actualizar
 - `DELETE /api/vehicles/:id/trips/:tripId` — Eliminar
 
 ### Estadísticas
-- `GET /api/stats/:id` — Estadísticas del vehículo (rendimiento, costos, etc.)
+- `GET /api/stats/:id` — Estadísticas del vehículo
 - `GET /api/stats/overview` — Comparativa de todos los vehículos
-
----
-
-## Estructura del proyecto
-
-```
-fueltrack/
-├── server/
-│   ├── prisma/
-│   │   ├── schema.prisma    # Modelo de datos
-│   │   └── seed.ts          # Datos demo
-│   └── src/
-│       ├── config/           # Variables de entorno
-│       ├── lib/              # Prisma, JWT, bcrypt
-│       ├── middleware/       # Auth, validación, errores
-│       └── features/
-│           ├── auth/         # Registro, login, JWT
-│           ├── vehicles/     # CRUD vehículos
-│           ├── fuel/         # CRUD tanqueos
-│           ├── trips/        # CRUD viajes
-│           └── stats/        # Cálculos y estadísticas
-├── client/
-│   └── src/
-│       ├── components/       # UI y layout
-│       ├── pages/            # Páginas de la app
-│       ├── stores/           # Zustand stores
-│       ├── hooks/            # Custom hooks
-│       └── lib/              # API client, utils
-├── docker-compose.yml        # PostgreSQL
-└── README.md
-```
 
 ---
 
@@ -167,22 +156,10 @@ fueltrack/
 - **Dashboard**: KPIs de rendimiento, costo/km, gasto mensual, próximo tanqueo estimado. Gráficos de gasto y rendimiento.
 - **Vehículos**: CRUD completo con color personalizado, selector de vehículo activo.
 - **Tanqueos**: Registro con cálculo automático de total, historial con rendimiento puntual.
-- **Rutas GPS**: Grabación en vivo con watchPosition, distancia y tiempo en tiempo real.
+- **Rutas GPS**: Grabación en vivo con Leaflet + OpenStreetMap, importar/exportar GPX.
 - **Modo oscuro**: Toggle persistido, respeta preferencia del sistema.
-- **PWA**: Instalable como app, caché offline de datos.
-- **Mobile-first**: Navegación inferior, FAB, touch targets ≥ 44px.
-
----
-
-## Cómo usar el GPS
-
-1. Ve a **Rutas → Nueva ruta**
-2. Presiona **Iniciar viaje** (el navegador pedirá permiso de ubicación)
-3. Conduce con la app abierta — la distancia y tiempo se actualizan en vivo
-4. Al llegar, presiona **Finalizar viaje**
-5. El viaje se guarda automáticamente en el vehículo activo
-
-> ⚠️ Mantén la pantalla encendida y la pestaña abierta. La precisión depende del GPS del dispositivo.
+- **PWA**: Instalable como app, caché offline con service worker.
+- **Mobile-first**: Navegación inferior, sidebar fijo en desktop.
 
 ---
 
