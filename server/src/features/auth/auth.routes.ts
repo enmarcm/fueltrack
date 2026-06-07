@@ -1,0 +1,15 @@
+import { Router, type IRouter } from 'express';
+import { register, login, refresh, me } from './auth.controller';
+import { requireAuth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { registerSchema, loginSchema, refreshSchema } from './auth.schema';
+
+const router = Router();
+
+router.post('/register', validate(registerSchema), register);
+router.post('/login', validate(loginSchema), login);
+router.post('/refresh', validate(refreshSchema), refresh);
+router.get('/me', requireAuth, me);
+
+const _router: IRouter = router;
+export default _router;

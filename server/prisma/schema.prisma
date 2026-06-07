@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FuelType {
+  GASOLINA
+  DIESEL
+  GAS
+  ELECTRICO
+  HIBRIDO
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String?
+  createdAt DateTime  @default(now())
+  vehicles  Vehicle[]
+}
+
+model Vehicle {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  brand        String?
+  model        String?
+  year         Int?
+  fuelType     FuelType    @default(GASOLINA)
+  tankCapacity Float?
+  odometer     Float       @default(0)
+  color        String?
+  photoUrl     String?
+  createdAt    DateTime    @default(now())
+  fuelEntries  FuelEntry[]
+  trips        Trip[]
+}
+
+model FuelEntry {
+  id            String   @id @default(cuid())
+  vehicleId     String
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date          DateTime @default(now())
+  odometer      Float
+  liters        Float
+  pricePerLiter Float
+  totalCost     Float
+  isFullTank    Boolean  @default(true)
+  station       String?
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+model Trip {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  startedAt   DateTime
+  endedAt     DateTime?
+  distanceKm  Float    @default(0)
+  durationSec Int      @default(0)
+  origin      String?
+  destination String?
+  path        Json?
+  source      String   @default("gps")
+  notes       String?
+  createdAt   DateTime @default(now())
+}

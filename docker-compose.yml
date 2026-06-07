@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fueltrack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fueltrack
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-fueltrack}
+      POSTGRES_DB: fueltrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - fueltrack-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fueltrack -d fueltrack"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: fueltrack-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://fueltrack:${DB_PASSWORD:-fueltrack}@postgres:5432/fueltrack?schema=public"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      PORT: 4000
+      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      NODE_ENV: production
+    networks:
+      - fueltrack-net
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: fueltrack-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    networks:
+      - fueltrack-net
+
+volumes:
+  pgdata:
+
+networks:
+  fueltrack-net:
+    driver: bridge
