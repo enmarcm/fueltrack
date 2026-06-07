@@ -19,7 +19,7 @@ ENV VITE_API_URL=$VITE_API_URL
 
 RUN pnpm build
 
-RUN pnpm install --prod --frozen-lockfile
+RUN CI=true pnpm install --prod --frozen-lockfile
 
 COPY nginx/default.conf /etc/nginx/http.d/default.conf
 COPY start.sh /start.sh
